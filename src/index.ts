@@ -14,11 +14,11 @@ import keyboards from 'bot/keyboards';
 void (async () => {
   await db.openConnection();
   void scheduleParsing(
-    '2/30 * * * *',
+    process.env.CRON_SCHEDULE_FREE || '*/30 * * * * *',
     (user) => user.status !== StatusPremium.ACTIVE,
   );
   void scheduleParsing(
-    '*/5 * * * *',
+    process.env.CRON_SCHEDULE_PREMIUM || '*/5 * * * *',
     (user) => user.status === StatusPremium.ACTIVE,
   );
 

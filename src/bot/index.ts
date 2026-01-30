@@ -21,31 +21,47 @@ import { getExtendedNotification } from 'config/lib/helpers/getExtendedNotificat
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? '';
 const PORT = Number(process.env.WEBHOOK_PORT) ?? 8443;
 const HOST = process.env.HOST ?? '';
-const WEBHOOK_URL = `${HOST}:${PORT}/bot${TOKEN}`;
+const USE_TUNNEL = process.env.USE_TUNNEL === 'true';
 
-const options = {
-  webHook: {
-    port: PORT,
-    key: './certs/bot/key.pem',
-    cert: './certs/bot/cert.pem',
-  },
-};
+// Режим с туннелем: HTTP без сертификатов, webhook устанавливается внешним скриптом
+// Режим без туннеля: HTTPS с сертификатами, webhook устанавливается ботом
+const options: TelegramBot.ConstructorOptions = USE_TUNNEL
+  ? {
+      webHook: {
+        port: PORT,
+      },
+    }
+  : {
+      webHook: {
+        port: PORT,
+        key: './certs/bot/key.pem',
+        cert: './certs/bot/cert.pem',
+      },
+    };
 
 export const bot = new TelegramBot(TOKEN, options);
 
-void (async () => {
-  try {
-    const { url } = await bot.getWebHookInfo();
-    if (url !== WEBHOOK_URL) {
-      await bot.setWebHook(WEBHOOK_URL, {
-        certificate: options.webHook.cert,
-      });
-      console.info('Webhook was successfully set');
+// Устанавливаем webhook только если НЕ используем туннель
+// При использовании туннеля webhook устанавливается скриптом start-tunnel.sh
+if (!USE_TUNNEL) {
+  const WEBHOOK_URL = `${HOST}:${PORT}/bot${TOKEN}`;
+
+  void (async () => {
+    try {
+      const { url } = await bot.getWebHookInfo();
+      if (url !== WEBHOOK_URL) {
+        await bot.setWebHook(WEBHOOK_URL, {
+          certificate: (options.webHook as { cert?: string }).cert,
+        });
+        console.info('Webhook was successfully set');
+      }
+    } catch (error) {
+      console.error('The certificate could not be installed', error);
     }
-  } catch (error) {
-    console.error('The certificate could not be installed', error);
-  }
-})();
+  })();
+} else {
+  console.info('Tunnel mode: webhook will be set by cloudflared');
+}
 
 const listener = fork(path.resolve(__dirname, 'queue', 'listenBotQueues.ts'), {
   execArgv: ['-r', 'ts-node/register'],

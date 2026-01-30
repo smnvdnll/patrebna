@@ -1,0 +1,26 @@
+# mongo-keyfile has restrictive permissions that cause issues on macOS
+# Other certs are needed for COPY in Dockerfiles
+certs/mongo-keyfile
+
+# Docker data
+Docker/data/
+
+# Git
+.git/
+.gitignore
+
+# Development
+.env
+.env.*
+*.log
+node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
