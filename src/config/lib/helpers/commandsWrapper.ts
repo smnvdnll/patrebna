@@ -6,7 +6,7 @@ import { sendMessage } from 'config/lib/helpers/sendMessage';
 import { notRegistrationMessage } from './notRegistrationMessage';
 import { type ICommandHandler } from 'config/types';
 
-export async function сommandsWrapper({
+export async function commandsWrapper({
   regex,
   handler,
   options = { public: false },

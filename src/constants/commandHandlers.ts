@@ -8,7 +8,7 @@ import { statusDescription } from 'constants/statusDescriptionPremium';
 import { notRegistrationMessage } from 'config/lib/helpers/notRegistrationMessage';
 import { bot } from 'bot';
 
-export const сommandHandlers: ICommandHandler[] = [
+export const commandHandlers: ICommandHandler[] = [
   {
     regex: /\/start(?: (.+))?/,
     handler: async (userId, match) => {

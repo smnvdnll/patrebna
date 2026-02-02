@@ -29,8 +29,8 @@ import { checkStatusOfDailyActivities } from 'config/lib/helpers/checkStatusOfDa
 import { getDataWallet } from 'config/lib/helpers/getDataWallet';
 import { editMessage } from 'config/lib/helpers/editMessage';
 import { sendMessage } from 'config/lib/helpers/sendMessage';
-import { сommandsWrapper } from 'config/lib/helpers/сommandsWrapper';
-import { сommandHandlers } from 'constants/сommandHandlers';
+import { commandsWrapper } from 'config/lib/helpers/commandsWrapper';
+import { commandHandlers } from 'constants/commandHandlers';
 import { tariffData } from 'constants/tariffs';
 import cache from 'config/redis/redisService';
 import { deleteMessage } from 'config/lib/helpers/deleteMessage';
@@ -472,7 +472,7 @@ export default async (): Promise<void> => {
     }
   });
   await db.openConnection();
-  for (const command of сommandHandlers) {
-    await сommandsWrapper(command);
+  for (const command of commandHandlers) {
+    await commandsWrapper(command);
   }
 };
