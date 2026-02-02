@@ -1,4 +1,3 @@
-import { type IDataParserItem } from 'config/types';
 import { Schema, model } from 'mongoose';
 
 const DataParserSchema = new Schema(
@@ -21,10 +20,6 @@ const DataParserSchema = new Schema(
           },
         },
       ],
-      validate: {
-        validator: (value: IDataParserItem[]) => value.length <= 3,
-        message: 'Коллекция ссылок не может содержать больше 3 объектов.',
-      },
     },
   },
   { versionKey: false },

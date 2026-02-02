@@ -1,9 +1,8 @@
 import db from 'config/db/databaseServise';
 import { getUserLanguage } from 'config/lib/helpers/cacheLanguage';
 import { editMessage } from 'config/lib/helpers/editMessage';
-import { getMessageObserve } from 'config/lib/helpers/getMessageObserve';
 import { getObserveButton } from 'config/lib/helpers/getObserveButton';
-import { type IButton, Button, StatusPremium } from 'config/types';
+import { type IButton, Button } from 'config/types';
 import i18next, { t } from 'i18next';
 
 export async function handleObserveKufar(
@@ -13,37 +12,19 @@ export async function handleObserveKufar(
 ): Promise<void> {
   await i18next.changeLanguage(await getUserLanguage(chatId));
   const dataParser = await db.getDataParser(chatId);
-  const statusPremium = await db.getDataPremium(chatId);
-  const quantityUrls = dataParser?.urls.length;
-  const firstUrl = dataParser?.urls.find((url) => url.urlId === 1);
+  const quantityUrls = dataParser?.urls.length ?? 0;
 
   const inlineKeyboard: IButton[][] = [getObserveButton()];
-  let message = t('Текст для Kufar');
+  const message = t('Текст для Kufar');
 
-  if (!firstUrl) {
-    inlineKeyboard.unshift(getObserveButton(Button.ADD, 1));
-  }
+  const addButtonType = quantityUrls === 0 ? Button.ADD : Button.ADD_MORE;
+  inlineKeyboard.unshift(
+    getObserveButton(addButtonType, quantityUrls + 1),
+  );
 
-  if (firstUrl && statusPremium?.status !== StatusPremium.ACTIVE) {
-    message = await getMessageObserve(chatId, 1);
-    const { isActive, urlId } = firstUrl;
-    inlineKeyboard.unshift(
-      getObserveButton(Button.UPDATE, urlId),
-      isActive
-        ? getObserveButton(Button.STOP_OBSERVE, urlId)
-        : getObserveButton(Button.START_OBSERVE, urlId),
-      getObserveButton(Button.DELETE, urlId),
-    );
-  }
-
-  if (quantityUrls && statusPremium?.status === StatusPremium.ACTIVE) {
-    if (quantityUrls < 3)
-      inlineKeyboard.unshift(
-        getObserveButton(Button.ADD_MORE, quantityUrls + 1),
-      );
+  if (quantityUrls > 0) {
     const wrapButtons: IButton[][] = [];
-
-    const sortedUrls = [...dataParser.urls].sort((a, b) => a.urlId - b.urlId);
+    const sortedUrls = [...dataParser!.urls].sort((a, b) => a.urlId - b.urlId);
 
     for (let i = 0; i < quantityUrls; i++) {
       wrapButtons.push(getObserveButton(Button.WRAP, sortedUrls[i].urlId));
@@ -51,6 +32,7 @@ export async function handleObserveKufar(
 
     inlineKeyboard.unshift(...wrapButtons);
   }
+
   await editMessage(chatId, messageId, message, callbackQueryId, {
     inline_keyboard: inlineKeyboard,
   });
