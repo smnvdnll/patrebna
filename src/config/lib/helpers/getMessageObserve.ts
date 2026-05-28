@@ -13,6 +13,7 @@ export async function getMessageObserve(
     `${t('Вот данные по запрашиваемой ссылке')}:`,
     `🔗 <b>${t('Ссылка')}:</b> ${urlInformation.url} `,
     `📌 <b>${t('Состояние')}:</b> ${urlInformation.statusUrl ? t('Активное состояние') : t('Неактивное состояние')}`,
+    `⏱️ <b>${t('Частота обновления')}:</b> ${urlInformation.intervalMinutes ?? 1} ${t('Минут')}`,
     `🔢 <b>${t('Количество объявлений')}:</b> ${urlInformation.numberOfAds ?? 0}`,
   ].join('\n');
 }

@@ -1,9 +1,8 @@
-FROM node:alpine
-RUN apk add --no-cache ca-certificates
-COPY ../certs/ca.pem /usr/local/share/ca-certificates/ca.crt
-RUN update-ca-certificates
+FROM node:20-alpine
 WORKDIR /usr/src/app/
 COPY package*.json ./
-RUN npm install
+RUN npm ci --ignore-scripts --no-audit --no-fund \
+    && test -s node_modules/express/package.json \
+    && test -x node_modules/.bin/ts-node
 COPY . .
 CMD ["npm", "run", "start:bot"]

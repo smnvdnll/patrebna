@@ -1,8 +1,7 @@
 import { bot } from 'bot';
-import i18next, { t } from 'i18next';
+import i18next from 'i18next';
 import db from 'config/db/databaseServise';
 import { getUserLanguage } from 'config/lib/helpers/cacheLanguage';
-import { sendMessage } from 'config/lib/helpers/sendMessage';
 import { notRegistrationMessage } from './notRegistrationMessage';
 import { type ICommandHandler } from 'config/types';
 
@@ -15,14 +14,6 @@ export async function commandsWrapper({
     void (async () => {
       const userId = ctx.chat.id;
       await i18next.changeLanguage(await getUserLanguage(userId));
-      const isBlocked = await db.isUserBlocked(userId);
-      if (isBlocked) {
-        await sendMessage(
-          userId,
-          t('Сообщение для заблокированного пользователя'),
-        );
-        return;
-      }
       if (!options.public) {
         const isRegistered = await db.getUser(userId);
         if (!isRegistered) {
@@ -31,6 +22,8 @@ export async function commandsWrapper({
         }
       }
       await handler(userId, match);
-    })();
+    })().catch((error) => {
+      console.error('Ошибка при обработке команды бота:', error);
+    });
   });
 }

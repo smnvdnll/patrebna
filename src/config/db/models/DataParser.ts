@@ -18,6 +18,14 @@ const DataParserSchema = new Schema(
             type: Boolean,
             required: true,
           },
+          intervalMinutes: {
+            type: Number,
+            required: true,
+            min: 1,
+          },
+          lastCheckedAt: {
+            type: Date,
+          },
         },
       ],
     },

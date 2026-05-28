@@ -25,13 +25,12 @@ export async function parseAdHandler(
       return;
     }
     const url = `https://www.kufar.by/item/${adId}`;
-    const { data } = await axios.get<string>(url);
-    const description: string | null = extractNextDataField(
+    const { data } = await axios.get<string>(url, { timeout: 15000 });
+    const rawDescription: string | null = extractNextDataField(
       data,
       'props.initialState.adView.data.description',
-    )
-      .replace(/\n+/g, ' ')
-      .trim();
+    );
+    const description = rawDescription?.replace(/\n+/g, ' ').trim();
 
     if (!description) {
       res.status(204).send();

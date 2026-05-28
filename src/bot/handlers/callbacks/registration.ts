@@ -1,82 +1,32 @@
-import keyboards from 'bot/keyboards';
-import i18next, { t } from 'i18next';
+import { t } from 'i18next';
+import { type User } from 'node-telegram-bot-api';
 import db from 'config/db/databaseServise';
-import { getUserLanguage } from 'config/lib/helpers/cacheLanguage';
 import { sendMessage } from 'config/lib/helpers/sendMessage';
-import type { User } from 'node-telegram-bot-api';
-import { type ICallbackData, type IProfile, StatusPremium } from 'config/types';
-import { editMessage } from 'config/lib/helpers/editMessage';
-import { deleteMessage } from 'config/lib/helpers/deleteMessage';
-import { Activity } from 'config/db/models/Activity';
-import cache from 'config/redis/redisService';
+import { type IProfile } from 'config/types';
+import keyboards from 'bot/keyboards';
 
 export async function handleRegistration(
   chatId: number,
   from: User,
-  messageId: number | undefined,
-  callbackData: ICallbackData,
-  callbackQueryId: string,
 ): Promise<void> {
-  await i18next.changeLanguage(await getUserLanguage(chatId));
-  const isRegistred = await db.getUser(chatId);
+  const existingUser = await db.getUser(chatId);
+  if (existingUser) {
+    await sendMessage(chatId, t('Пользователь уже зарегистрирован'));
+    return;
+  }
 
-  if (!isRegistred) {
-    const lockKey = `registering:${chatId}`;
-    const isLocked = await cache.setCacheNotExists(lockKey, true);
-    if (!isLocked) {
-      if (messageId) await deleteMessage(chatId, messageId, callbackQueryId);
-      return;
-    }
-    try {
-      const isChannelSubscriptionRewarded = await Activity.exists({
-        userIdsSubscribedToChannel: chatId,
-      });
+  const profile: IProfile = {
+    username: from.username,
+    first_name: from.first_name,
+    last_name: from.last_name,
+  };
 
-      if (callbackData?.param)
-        await db.tryAddReferralWithBonus(chatId, callbackData?.param as number);
-
-      const { username, first_name, last_name } = from;
-      const profile: IProfile = {
-        username,
-        first_name,
-        last_name,
-        subscribeToChannel: Boolean(isChannelSubscriptionRewarded),
-        premium: { status: StatusPremium.NONE },
-      };
-      await db.setUser(chatId, profile);
-      await editMessage(
-        chatId,
-        messageId,
-        t('Успех регистрации'),
-        callbackQueryId,
-      );
-      await sendMessage(
-        chatId,
-        t('Сообщение об отслеживании'),
-        keyboards.Observe(),
-      );
-    } catch (error) {
-      console.error(error);
-      await sendMessage(chatId, t('Ошибка регистрации'), {
-        inline_keyboard: [
-          [
-            {
-              text: t('Регистрация'),
-              callback_data: JSON.stringify({ action: 'registration' }),
-            },
-          ],
-        ],
-      });
-    } finally {
-      await cache.removeCache(lockKey);
-    }
-  } else {
-    await editMessage(
-      chatId,
-      messageId,
-      t('Пользователь уже зарегистрирован'),
-      callbackQueryId,
-      keyboards.Observe(),
-    );
+  try {
+    await db.setUser(chatId, profile);
+    await sendMessage(chatId, t('Успех регистрации'), keyboards.Main());
+    await sendMessage(chatId, t('Сообщение об отслеживании'), keyboards.Observe());
+  } catch (error) {
+    await sendMessage(chatId, t('Ошибка регистрации'));
+    console.error('Ошибка регистрации:', error);
   }
 }

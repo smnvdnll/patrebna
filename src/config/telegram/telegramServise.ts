@@ -1,11 +1,13 @@
 import axios from 'axios';
 import { type InlineKeyboardMarkup } from 'node-telegram-bot-api';
-import db from 'config/db/databaseServise';
 import { isTelegramError } from 'config/types';
+import { createReadStream } from 'fs';
+import FormData from 'form-data';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const TELEGRAM_API_URL = `https://api.telegram.org/bot${TOKEN}`;
+const DEFAULT_IMAGE_PATH = 'src/bot/assets/images/no-photo.webp';
 
 export const TelegramService = {
   async editMessageText(
@@ -36,7 +38,7 @@ export const TelegramService = {
           error_code === 403 ||
           (error_code === 400 && description.includes('USER_IS_BLOCKED'))
         ) {
-          await db.removeUser(chatId);
+          console.warn(`Пользователь ${chatId} заблокировал бота.`);
           return;
         }
 
@@ -46,6 +48,8 @@ export const TelegramService = {
     }
   },
   async sendMessageToChat(text: string) {
+    if (!CHAT_ID) return;
+
     try {
       const url = `${TELEGRAM_API_URL}/sendMessage`;
       await axios.post(url, {
@@ -56,5 +60,67 @@ export const TelegramService = {
     } catch (error) {
       console.error('Ошибка при отправке сообщения в Telegram:', error);
     }
+  },
+  async sendMessage(
+    chatId: number,
+    text: string,
+    keyboard?: InlineKeyboardMarkup,
+  ) {
+    try {
+      const url = `${TELEGRAM_API_URL}/sendMessage`;
+      await axios.post(url, {
+        chat_id: chatId,
+        text,
+        parse_mode: 'HTML',
+        reply_markup: keyboard,
+      });
+    } catch (error) {
+      await this.handleUserError(chatId, error);
+    }
+  },
+  async sendPhoto(
+    chatId: number,
+    caption: string,
+    keyboard?: InlineKeyboardMarkup,
+    photo?: string,
+  ) {
+    try {
+      if (photo) {
+        const url = `${TELEGRAM_API_URL}/sendPhoto`;
+        await axios.post(url, {
+          chat_id: chatId,
+          photo,
+          caption,
+          parse_mode: 'HTML',
+          reply_markup: keyboard,
+        });
+        return;
+      }
+
+      const url = `${TELEGRAM_API_URL}/sendPhoto`;
+      const form = new FormData();
+      form.append('chat_id', String(chatId));
+      form.append('caption', caption);
+      form.append('parse_mode', 'HTML');
+      if (keyboard) form.append('reply_markup', JSON.stringify(keyboard));
+      form.append('photo', createReadStream(DEFAULT_IMAGE_PATH));
+      await axios.post(url, form, { headers: form.getHeaders() });
+    } catch (error) {
+      await this.sendMessage(chatId, caption, keyboard);
+      await this.handleUserError(chatId, error);
+    }
+  },
+  async handleUserError(chatId: number, error: unknown) {
+    if (isTelegramError(error)) {
+      const { error_code, description } = error.response.body;
+      if (
+        error_code === 403 ||
+        (error_code === 400 && description.includes('USER_IS_BLOCKED'))
+      ) {
+        console.warn(`Пользователь ${chatId} заблокировал бота.`);
+        return;
+      }
+    }
+    console.error('Ошибка при отправке сообщения в Telegram:', error);
   },
 };

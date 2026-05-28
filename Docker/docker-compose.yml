@@ -3,27 +3,21 @@ services:
     build:
       context: ../
       dockerfile: ./Docker/bot/Dockerfile
+      network: host
     image: bot
     container_name: patrebna-bot
     restart: always
-    ports:
-      - "8443:8443"
+    network_mode: host
     environment:
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - WEBHOOK_PORT=${WEBHOOK_PORT:-8443}
-      - HOST=${HOST}
-      - USE_TUNNEL=${USE_TUNNEL:-false}
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - CRON_SCHEDULE_FREE=${CRON_SCHEDULE_FREE:-*/30 * * * * *}
-      - CRON_SCHEDULE_PREMIUM=${CRON_SCHEDULE_PREMIUM:-*/5 * * * *}
+      - MONGODB_URL=mongodb://127.0.0.1:27017/
+      - API_BASE_URL=http://127.0.0.1:3000/api
     depends_on:
-      - mongodb
-      - redis
-    networks:
-      - patrebna-network
+      mongodb:
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:
@@ -33,22 +27,23 @@ services:
     build:
       context: ../
       dockerfile: ./Docker/parser/Dockerfile
+      network: host
     image: parser
     container_name: patrebna-parser
     restart: always
-    ports:
-      - "3001:3001"
+    network_mode: host
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+      - MONGODB_URL=mongodb://127.0.0.1:27017/
+      - API_BASE_URL=http://127.0.0.1:3000/api
     depends_on:
-      - mongodb
-      - redis
-    networks:
-      - patrebna-network
+      api:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
     logging:
       driver: "json-file"
       options:
@@ -58,34 +53,30 @@ services:
     build:
       context: ../
       dockerfile: ./Docker/api/Dockerfile
+      network: host
     image: api
     container_name: patrebna-api
     restart: always
-    ports:
-      - "443:3000"
+    network_mode: host
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - HOST=${HOST}
-      - STORE_ID=${STORE_ID}
-      - BEPAID_API_KEY=${BEPAID_API_KEY}
-    volumes:
-      - ../certs/ca.pem:/usr/src/app/certs/ca.pem:ro
-      - ../certs/server.pem:/usr/src/app/certs/server.pem:ro
-      - ../certs/server-key.pem:/usr/src/app/certs/server-key.pem:ro
-      - ../certs/client.pem:/usr/src/app/certs/client.pem:ro
-    depends_on:
-      - mongodb
-    networks:
-      - patrebna-network
+      - MONGODB_URL=mongodb://127.0.0.1:27017/
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://localhost:3000/health', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\"",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
-    cap_add:
-      - NET_ADMIN
   mongodb:
     image: mongo:latest
     container_name: patrebna-mongodb
@@ -95,59 +86,22 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD}
     command:
       - mongod
-      - --replSet
-      - rs0
-      - --tlsMode
-      - requireTLS
-      - --tlsCertificateKeyFile
-      - /etc/ssl/mongodb.pem
-      - --tlsCAFile
-      - /etc/ssl/ca.pem
       - --auth
-      - --keyFile
-      - /etc/ssl/mongo-keyfile
       - --bind_ip_all
-    ports:
-      - "27017:27017"
     volumes:
       - ./data/db:/data/db
-      - ../certs/mongodb/mongodb.pem:/etc/ssl/mongodb.pem
-      - ../certs/ca.pem:/etc/ssl/ca.pem
-      - ../certs/mongo-keyfile:/etc/ssl/mongo-keyfile
-    networks:
-      - patrebna-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-  redis:
-    image: redis:latest
-    container_name: patrebna-redis
-    restart: always
     ports:
-      - "6379:6379"
-    volumes:
-      - ../certs/ca.pem:/etc/ssl/ca.pem
-      - ../certs/redis:/etc/ssl/redis
-    environment:
-      REDIS_PASSWORD: ${REDIS_PASSWORD}
-    command:
-      - redis-server
-      - --tls-port
-      - "6379"
-      - --port
-      - "0"
-      - --tls-cert-file
-      - /etc/ssl/redis/redis-cert.pem
-      - --tls-key-file
-      - /etc/ssl/redis/redis-key.pem
-      - --tls-ca-cert-file
-      - /etc/ssl/ca.pem
-      - --tls-auth-clients
-      - "yes"
-      - --requirepass
-      - ${REDIS_PASSWORD}
+      - "27017:27017"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "mongosh --quiet -u \"$${MONGO_INITDB_ROOT_USERNAME}\" -p \"$${MONGO_INITDB_ROOT_PASSWORD}\" --authenticationDatabase admin --eval \"db.runCommand('ping').ok\" | grep 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
     networks:
       - patrebna-network
     logging:
@@ -155,31 +109,6 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
-  cloudflared:
-    build:
-      context: ./cloudflared
-      dockerfile: Dockerfile
-    image: cloudflared-tunnel
-    container_name: patrebna-cloudflared
-    restart: unless-stopped
-    command: ["/scripts/start-tunnel.sh"]
-    environment:
-      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
-      - TUNNEL_TARGET_URL=http://bot:8443
-    volumes:
-      - ../scripts:/scripts:ro
-    depends_on:
-      - bot
-    networks:
-      - patrebna-network
-    profiles:
-      - tunnel
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
 networks:
   patrebna-network:
     driver: bridge

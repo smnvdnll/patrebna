@@ -2,24 +2,15 @@ import db from 'config/db/databaseServise';
 import { t } from 'i18next';
 import { sendMessage } from 'config/lib/helpers/sendMessage';
 import { sendPhoto } from 'config/lib/helpers/sendPhoto';
-import { type ICommandHandler, StatusPremium } from 'config/types';
+import { type ICommandHandler } from 'config/types';
 import keyboards from 'bot/keyboards';
-import { statusDescription } from 'constants/statusDescriptionPremium';
 import { notRegistrationMessage } from 'config/lib/helpers/notRegistrationMessage';
 import { bot } from 'bot';
 
 export const commandHandlers: ICommandHandler[] = [
   {
-    regex: /\/start(?: (.+))?/,
-    handler: async (userId, match) => {
-      const payload = match?.[1] ?? null;
-      let referrerId: number | undefined;
-      if (payload?.startsWith('ref')) {
-        const parsed = Number(payload.slice(3));
-        if (!isNaN(parsed)) {
-          referrerId = parsed;
-        }
-      }
+    regex: /\/start/,
+    handler: async (userId) => {
       const isRegistered = await db.getUser(userId);
       await sendMessage(userId, t('Приветствие'), keyboards.Main());
       if (isRegistered) {
@@ -28,7 +19,9 @@ export const commandHandlers: ICommandHandler[] = [
           t('Сообщение об отслеживании'),
           keyboards.Observe(),
         );
-      } else await notRegistrationMessage(userId, referrerId);
+      } else {
+        await notRegistrationMessage(userId);
+      }
     },
     options: { public: true },
   },
@@ -44,10 +37,6 @@ export const commandHandlers: ICommandHandler[] = [
     regex: /Профиль|Профіль/,
     handler: async (userId: number) => {
       const profile = await db.getProfile(userId);
-      const premium = await db.getDataPremium(userId);
-      const status = premium?.status ?? StatusPremium.NONE;
-      const endDatePremium = premium?.end_date;
-      const createdAtProfile = premium?.createdAt;
       const options: Intl.DateTimeFormatOptions = {
         day: 'numeric',
         month: 'numeric',
@@ -59,12 +48,12 @@ export const commandHandlers: ICommandHandler[] = [
         `${t('Сообщение для профиля')}`,
         '',
         `<b>${t('ФИО')}</b>: ${profile?.last_name ?? ''} ${profile?.first_name ?? ''}`,
-        `${profile?.username ? `<b>${t('Псевдоним')}</b>: ${profile?.username ?? ''}` : ''}`,
-        `<b>${t('Дата регистрации')}</b>: ${createdAtProfile ? `<i>${new Date(createdAtProfile).toLocaleDateString('ru-RU', options)}</i>` : t('Недавно')}`,
-        `<b>${t('Подписка')}</b>: ${t(statusDescription[status].title)} ${status === StatusPremium.ACTIVE && endDatePremium ? `${t('До')} <i>${new Date(endDatePremium).toLocaleDateString('ru-RU', options)}</i>` : ''}`,
-        `<b>${t('Подписка на канал')}</b>: ${profile?.subscribeToChannel ? '☑️' : '✖️'}`,
-        `<b>${t('Количество рефералов')}</b>: ${profile?.referrals?.length}`,
-        `<b>${t('Бонусы')}</b>: ${profile?.wallet ?? 0}`,
+        `${profile?.username ? `<b>${t('Псевдоним')}</b>: ${profile.username}` : ''}`,
+        `<b>${t('Дата регистрации')}</b>: ${
+          (profile as { createdAt?: Date } | null)?.createdAt
+            ? `<i>${new Date((profile as { createdAt: Date }).createdAt).toLocaleDateString('ru-RU', options)}</i>`
+            : t('Недавно')
+        }`,
       ].join('\n');
       const { photos, total_count } = await bot.getUserProfilePhotos(userId, {
         offset: 0,
@@ -77,7 +66,7 @@ export const commandHandlers: ICommandHandler[] = [
       }
 
       const avatar = photos[0];
-      const bestQuality = avatar[avatar?.length - 1];
+      const bestQuality = avatar[avatar.length - 1];
       await sendPhoto(
         userId,
         dataProfile,
@@ -94,12 +83,6 @@ export const commandHandlers: ICommandHandler[] = [
         t('Сообщение об отслеживании'),
         keyboards.Observe(),
       );
-    },
-  },
-  {
-    regex: /Подписка|Падпіска/,
-    handler: async (userId: number) => {
-      await sendMessage(userId, t('Описание подписки'), keyboards.Premium());
     },
   },
   {

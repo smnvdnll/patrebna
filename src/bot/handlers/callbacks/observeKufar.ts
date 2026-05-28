@@ -24,7 +24,9 @@ export async function handleObserveKufar(
 
   if (quantityUrls > 0) {
     const wrapButtons: IButton[][] = [];
-    const sortedUrls = [...dataParser!.urls].sort((a, b) => a.urlId - b.urlId);
+    const sortedUrls = [...(dataParser?.urls ?? [])].sort(
+      (a, b) => a.urlId - b.urlId,
+    );
 
     for (let i = 0; i < quantityUrls; i++) {
       wrapButtons.push(getObserveButton(Button.WRAP, sortedUrls[i].urlId));

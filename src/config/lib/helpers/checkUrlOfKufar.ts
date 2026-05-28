@@ -6,7 +6,9 @@ export const checkUrlOfKufar = async (
 ): Promise<IAd[] | undefined> => {
   try {
     const encodedUrl = encodeURIComponent(url);
-    const { data } = await api.get<IAd[]>(`ads?url=${encodedUrl}`);
+    const { data } = await api.get<IAd[]>(`ads?url=${encodedUrl}`, {
+      timeout: 20000,
+    });
     return data;
   } catch (error) {
     console.error('Ошибка при добавлении ссылки:', error);

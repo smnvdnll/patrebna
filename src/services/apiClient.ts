@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 
 export const api = axios.create({
-  baseURL: 'http://api:3000/api',
+  baseURL: process.env.API_BASE_URL ?? 'http://api:3000/api',
 });
 
 api.interceptors.response.use(

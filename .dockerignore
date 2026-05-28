@@ -1,6 +1,4 @@
-# mongo-keyfile has restrictive permissions that cause issues on macOS
-# Other certs are needed for COPY in Dockerfiles
-certs/mongo-keyfile
+certs/
 
 # Docker data
 Docker/data/

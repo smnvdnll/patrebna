@@ -1,31 +1,15 @@
-import { type InlineKeyboardMarkup } from 'node-telegram-bot-api';
-
-interface IBaseMessage {
-  userId: number;
-}
-
-export interface IBotAdsMessage extends IBaseMessage {
-  newAds: IAd[] | IExtendedAd[];
-  key: string;
-}
-
-export interface IBotNotificationMessage extends IBaseMessage {
-  text: string;
-  keyboard?: InlineKeyboardMarkup;
-}
-
 export interface IProfile {
   username?: string;
   first_name?: string;
   last_name?: string;
-  subscribeToChannel: boolean;
-  premium: IPremium;
 }
 
 export interface IDataParserItem {
   urlId: number;
   url: string;
   isActive: boolean;
+  intervalMinutes: number;
+  lastCheckedAt?: Date;
 }
 
 export interface IExtendedDataParserItem {
@@ -34,7 +18,6 @@ export interface IExtendedDataParserItem {
 
 export interface IParserData {
   urls: IDataParserItem[];
-  status: StatusPremium;
   canNotify: boolean;
 }
 export interface ICommandHandler {
@@ -44,8 +27,6 @@ export interface ICommandHandler {
 }
 
 export type LanguageOfUser = Record<number, { language: Languages }>;
-
-export type StatusDescription = Record<StatusPremium, { title: string }>;
 
 export interface IAd {
   id: string;
@@ -77,17 +58,6 @@ export enum Button {
   BACK = 'back',
 }
 
-export enum OperationType {
-  INSERT = 'insert',
-  UPDATE = 'update',
-  DELETE = 'delete',
-}
-
-export enum UserActions {
-  REMOVE = 'remove',
-  NOTIFACTION = 'notification',
-}
-
 export interface IFaq {
   question: string;
   answer: string;
@@ -96,49 +66,6 @@ export interface IFaq {
 export interface ICallbackData {
   action: string;
   param?: any;
-}
-
-export enum StatusPremium {
-  ACTIVE = 'active',
-  EXPIRED = 'expired',
-  NONE = 'none',
-}
-
-export interface IPremium {
-  status: StatusPremium;
-  end_date?: Date;
-}
-
-export interface IOrder {
-  orderId: number;
-  name: string;
-  quantityOfDays: number;
-  description: string;
-  amount: number;
-  messageForBot: string;
-}
-
-export interface ResponseTransaction {
-  status: StatusTransaction;
-  tracking_id: string;
-}
-export interface ResponseOrder {
-  tracking_id: string;
-  description: string;
-  amount: number;
-}
-
-export interface ITrackingData {
-  userId: number;
-  messageId: number;
-  quantity?: number;
-  amount: number;
-}
-
-export enum StatusTransaction {
-  SUCCESSFUL = 'successful',
-  FAILED = 'failed',
-  PENDING = 'pending',
 }
 
 export function isTelegramError(error: unknown): error is {

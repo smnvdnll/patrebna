@@ -28,7 +28,7 @@ export async function parseAdsHandler(
       return;
     }
 
-    const { data } = await axios.get<string>(url);
+    const { data } = await axios.get<string>(url, { timeout: 15000 });
 
     const ads: RawAd[] | null = extractNextDataField(
       data,
