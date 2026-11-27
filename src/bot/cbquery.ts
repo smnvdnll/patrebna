@@ -19,6 +19,7 @@ import { commandsWrapper } from 'config/lib/helpers/commandsWrapper';
 import { commandHandlers } from 'constants/commandHandlers';
 import { deleteMessage } from 'config/lib/helpers/deleteMessage';
 import { pause } from 'config/lib/helpers/pause';
+import { safeAnswerCallbackQuery } from 'config/lib/helpers/safeAnswerCallbackQuery';
 
 export default async (): Promise<void> => {
   bot.on('callback_query', (query): void => {

@@ -58,10 +58,10 @@ wait_for_health() {
     exit 1
 }
 
-wait_for_health mongodb patrebna-mongodb
-wait_for_health api patrebna-api
-wait_for_health bot patrebna-bot
-wait_for_health parser patrebna-parser
+wait_for_health mongodb kufar-mongodb
+wait_for_health api kufar-api
+wait_for_health bot kufar-bot
+wait_for_health parser kufar-parser
 
 echo "=== Проверка внутренних подключений ==="
 compose exec -T mongodb mongosh --quiet \

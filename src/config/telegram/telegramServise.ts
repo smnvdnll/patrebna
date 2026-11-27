@@ -65,17 +65,19 @@ export const TelegramService = {
     chatId: number,
     text: string,
     keyboard?: InlineKeyboardMarkup,
-  ) {
+  ): Promise<number | undefined> {
     try {
       const url = `${TELEGRAM_API_URL}/sendMessage`;
-      await axios.post(url, {
+      const response = await axios.post(url, {
         chat_id: chatId,
         text,
         parse_mode: 'HTML',
         reply_markup: keyboard,
       });
+      return response.data?.result?.message_id;
     } catch (error) {
       await this.handleUserError(chatId, error);
+      return undefined;
     }
   },
   async sendPhoto(
@@ -83,18 +85,18 @@ export const TelegramService = {
     caption: string,
     keyboard?: InlineKeyboardMarkup,
     photo?: string,
-  ) {
+  ): Promise<number | undefined> {
     try {
       if (photo) {
         const url = `${TELEGRAM_API_URL}/sendPhoto`;
-        await axios.post(url, {
+        const response = await axios.post(url, {
           chat_id: chatId,
           photo,
           caption,
           parse_mode: 'HTML',
           reply_markup: keyboard,
         });
-        return;
+        return response.data?.result?.message_id;
       }
 
       const url = `${TELEGRAM_API_URL}/sendPhoto`;
@@ -104,10 +106,12 @@ export const TelegramService = {
       form.append('parse_mode', 'HTML');
       if (keyboard) form.append('reply_markup', JSON.stringify(keyboard));
       form.append('photo', createReadStream(DEFAULT_IMAGE_PATH));
-      await axios.post(url, form, { headers: form.getHeaders() });
+      const response = await axios.post(url, form, { headers: form.getHeaders() });
+      return response.data?.result?.message_id;
     } catch (error) {
-      await this.sendMessage(chatId, caption, keyboard);
+      const fallbackResult = await this.sendMessage(chatId, caption, keyboard);
       await this.handleUserError(chatId, error);
+      return fallbackResult;
     }
   },
   async handleUserError(chatId: number, error: unknown) {

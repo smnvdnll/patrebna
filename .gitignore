@@ -1,6 +1,18 @@
-node_modules
-Docker/data
-*pem
-/certs
+node_modules/
+Docker/data/
 .env
-.claude/
+*.log
+
+# бэкапы .env содержат живые ключи
+.env.bak.*
+.example.env
+
+# бэкапы (могут содержать живые ключи) и одноразовые probe-скрипты — не в репо
+*.bak
+*.bak.*
+scripts/discovery-smoke.ts
+scripts/fpcheck.ts
+scripts/migrate-to-listings.ts
+scripts/rescan3drw.ts
+scripts/verify-discovery-wiring.ts
+scripts/verify-entrypoint-flag-off.ts

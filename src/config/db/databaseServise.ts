@@ -6,6 +6,7 @@ import { Profile } from 'config/db/models/Profile';
 import { Parser } from 'config/db/models/Parser';
 import { KufarAd } from 'config/db/models/KufarAd';
 import { DataParser } from 'config/db/models/DataParser';
+import { Listing } from 'config/db/models/Listing';
 import {
   type IAd,
   type IProfile,
@@ -14,6 +15,7 @@ import {
   type IParserData,
 } from 'config/types';
 import { checkUrlOfKufar } from 'config/lib/helpers/checkUrlOfKufar';
+import { normalizeKufarUrl } from 'config/lib/helpers/normalizeKufarUrl';
 import { TelegramService } from 'config/telegram/telegramServise';
 
 class DatabaseService {
@@ -118,6 +120,16 @@ class DatabaseService {
     const kufarObjectIds = parser?.kufar?.kufarAds.flatMap((item) => item.ads);
 
     await KufarAd.deleteMany({ _id: { $in: kufarObjectIds } });
+    await Listing.updateMany(
+      {},
+      {
+        $pull: {
+          notifiedUsers: id,
+          telegramMessages: { chatId: id },
+          claimedUsers: { userId: id },
+        },
+      },
+    );
     await User.deleteOne({ id });
     if (profile) await Profile.deleteOne(profile._id);
     if (parser) await Parser.deleteOne(parser._id);
@@ -126,10 +138,15 @@ class DatabaseService {
 
   async setUrlKufar(
     userId: number,
-    url: string,
+    rawUrl: string,
     urlId: number,
     intervalMinutes: number,
   ) {
+    // The bot add-link flow decodes user input (`decodeURIComponent` in
+    // addLinkKufar), which turns `%20` into a raw space and breaks the validator
+    // below. Re-encode the query so any percent-decoded variant still passes
+    // and is stored byte-identical to what the API fetches fine.
+    const url = normalizeKufarUrl(rawUrl);
     const regex =
       /^(https?:\/\/(?:www\.)?(?:re\.|auto\.)?kufar\.by\/l)[\wа-яА-Я\-_.~!*'();/?:@&=+$,%]*$/;
 

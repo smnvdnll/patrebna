@@ -1,33 +1,43 @@
 import axios, { AxiosError } from 'axios';
 import { type Request, type Response } from 'express';
+import { transformRawAds } from 'sources/kufar/KufarMapper';
+import { type RawAd } from 'sources/kufar/types';
 import { extractNextDataField } from 'config/lib/helpers/extractNextDataField';
-import { transformRawAds } from 'config/lib/helpers/transformRawAds';
-import { type RawAd } from 'config/types';
+import { normalizeKufarUrl } from 'config/lib/helpers/normalizeKufarUrl';
+import { kufarFetchSlot } from 'config/lib/kufarFetchGate';
 import axiosRetry from 'axios-retry';
 
 axiosRetry(axios, {
-  retries: 3,
+  retries: 2,
   retryDelay: (retryCount, error) => {
     console.warn(`Попытка #${retryCount} для ${error?.config?.url}`);
-    return retryCount * 1000;
+    return retryCount * 4000;
   },
   retryCondition: (error) => {
+    const status = error?.response?.status;
+    // 429/400 are upstream verdicts, not transient transport failures.
+    if (status === 429 || status === 400) return false;
     return axiosRetry.isNetworkOrIdempotentRequestError(error);
   },
 });
+
+
 
 export async function parseAdsHandler(
   req: Request,
   res: Response,
 ): Promise<void> {
   try {
-    const url = decodeURIComponent(req.query.url as string);
+    const rawUrl = decodeURIComponent(req.query.url as string);
 
-    if (!url) {
+    if (!rawUrl) {
       res.status(400).json({ error: 'Отсутствует параметр URL' });
       return;
     }
 
+    const url = normalizeKufarUrl(rawUrl);
+
+    await kufarFetchSlot();
     const { data } = await axios.get<string>(url, { timeout: 15000 });
 
     const ads: RawAd[] | null = extractNextDataField(

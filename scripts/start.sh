@@ -71,23 +71,10 @@ do_restart() {
 do_up_build() {
     SERVICES=$(get_services)
 
-    # Останавливаем контейнеры и удаляем данные перед пересборкой
+    # Останавливаем контейнеры перед пересборкой
     echo -e "${YELLOW}Остановка контейнеров...${NC}"
     compose down 2>/dev/null || true
-    echo -e "${YELLOW}Удаление Docker/data...${NC}"
-    rm -rf "$DOCKER_DIR/data"
-    mkdir -p "$DOCKER_DIR/data/db"
-    # MongoDB runs as UID 999 inside container
-    # On macOS, Docker Desktop handles permissions automatically
-    if [[ "$(uname)" == "Linux" ]]; then
-        if [ "$(id -u)" -eq 0 ]; then
-            chown -R 999:999 "$DOCKER_DIR/data/db"
-            chmod -R 755 "$DOCKER_DIR/data/db"
-        else
-            sudo chown -R 999:999 "$DOCKER_DIR/data/db"
-            sudo chmod -R 755 "$DOCKER_DIR/data/db"
-        fi
-    fi
+    echo "Данные MongoDB (пользователи, профили, ссылки) хранятся в volume kufar-mongodb-data и сохраняются при пересборке."
 
     echo -e "${GREEN}=== Запуск с пересборкой ===${NC}"
     compose up -d --build $SERVICES

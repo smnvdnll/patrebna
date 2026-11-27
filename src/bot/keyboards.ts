@@ -11,6 +11,7 @@ class KeyboardManager {
       keyboard: [
         [{ text: `👤 ${t('Профиль')}` }, { text: `👁️ ${t('Отслеживать')}` }],
         [{ text: `❓ ${t('Помощь')}` }, { text: `${t('Язык')}` }],
+        [{ text: t('Статус') }],
       ],
       resize_keyboard: true,
     };
@@ -97,6 +98,7 @@ class KeyboardManager {
       ],
     };
   }
+
 }
 
 const keyboards = new KeyboardManager();

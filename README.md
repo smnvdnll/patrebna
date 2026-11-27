@@ -1,222 +1,91 @@
 <p align="center">
-      <img src="https://i.ibb.co/G0FKZK1/free-icon-chat-bot-9732765.png" width="150">
+      <img src="https://i.ibb.co/G0FKZK1/free-icon-chat-bot-9732765.png" width="150" alt="Patrebna Logo">
 </p>
 <h1 align="center">PATREBNA</h1>
 
 <p align="center">
    <img src="https://img.shields.io/badge/Typescript-%5E5.5.4-%23007acc" alt="Typescript Version">
    <img src="https://img.shields.io/badge/Node%20telegram%20bot%20api-%5E0.66.0-%230088cc" alt="Node telegram botapi Version">
-  <img src="https://img.shields.io/badge/DB-Mongodb-%233fa037" alt="Database">
+   <img src="https://img.shields.io/badge/DB-Mongodb-%233fa037" alt="Database">
    <img src="https://img.shields.io/badge/Languages-2-%23ebab00" alt="Languages">
-   <img src="https://img.shields.io/badge/Version-v4.5.2-%2300ad64" alt="App Version">
+   <img src="https://img.shields.io/badge/Links--only-no_AI-%2300ad64" alt="Links-only, no AI">
    <img src="https://img.shields.io/badge/License-MIT-%23a31f34" alt="License">
 </p>
 
-## Что умеет этот бот?
+## Обзор / Overview
 
-**Patrebna bot** - бот парсер, который отслеживает и оповещает о появлении новых объявлений на площадке **Kufar**.
-Сообщения приходят в личную переписку с ботом.
+**Patrebna** — Telegram-бот для мониторинга поисковых ссылок Kufar. Бот
+периодически опрашивает добавленные пользователем ссылки, забирает новые
+объявления через внутренний API-клиент, применяет фильтр цены/ключевых слов и
+дедупликацию по модели, после чего присылает уведомление в Telegram.
 
-## Что изменилось
+**AI-стек удалён полностью** (решение владельца от 16.09.2026): нет LLM,
+ско ринга релевантности, discovery-профилей, профилей интересов и обратной связи.
+Мониторинг идёт **только через ссылки в боте**. Не включать AI обратно без
+явной команды владельца.
 
-Проект переписан под один основной сценарий: отслеживание ссылок Kufar через Telegram-бота.
-Старые продуктовые ветки вырезаны, чтобы запуск был проще и не требовал лишней инфраструктуры.
-
-Удалено:
-
-- платежи BePaid;
-- премиум, тарифы, бонусы, рефералы, конкурсы и игровые механики;
-- Redis и очереди;
-- webhook, Cloudflare Tunnel и локальные TLS-сертификаты;
-- обязательная MongoDB replica set.
-
-Теперь бот работает через Telegram polling, а данные хранятся в обычной MongoDB.
-
-## Быстрый старт
-
-### Требования
-
-- Docker и Docker Compose
-- Telegram Bot Token (получить у [@BotFather](https://t.me/BotFather))
-
-### Установка
-
-**1. Клонируйте репозиторий**
-
-```bash
-git clone https://github.com/evgeniy-kolmak/patrebna.git
-cd patrebna
-```
-
-**2. Запустите скрипт настройки**
-
-```bash
-./scripts/setup-env.sh
-```
-
-Скрипт автоматически:
-- Создаст `.env` файл с безопасными паролями
-- Запросит только необходимые данные (Telegram Bot Token)
-- Оставит необязательные параметры пустыми, если они не нужны
-
-**3. Запустите проект**
-
-```bash
-./scripts/start.sh
-```
-
-Откроется интерактивное меню управления:
-
-```
-╔════════════════════════════════╗
-║       PATREBNA управление       ║
-╚════════════════════════════════╝
-
-  1) Запустить
-  2) Запустить с пересборкой
-  3) Остановить
-  4) Логи
-  5) Статус
-  6) Перезапустить
-  0) Выход
-```
-
-Готово! Выберите пункт 1 для запуска.
-
-После запуска откройте Telegram, найдите своего бота и отправьте `/start`.
-
-### Управление
-
-**Интерактивный режим** (рекомендуется):
-```bash
-./scripts/start.sh
-```
-
-**Командный режим** (для автоматизации):
-```bash
-./scripts/start.sh up          # Запустить
-./scripts/start.sh down        # Остановить
-./scripts/start.sh restart     # Перезапустить
-./scripts/start.sh logs        # Логи (интерактивный выбор сервиса)
-./scripts/start.sh status      # Статус контейнеров
-./scripts/smoke.sh             # Проверить запуск и связи сервисов
-```
-
-Если это первый запуск после старой версии проекта, используйте пересборку:
-
-```bash
-./scripts/start.sh build
-```
-
-## Режимы работы
-
-### Telegram polling
-
-Бот работает через Telegram polling: он сам запрашивает обновления у Telegram API. Для базового запуска не нужен публичный домен, webhook, Cloudflare Tunnel или локальные сертификаты.
+---
 
 ## Архитектура
 
-Проект состоит из нескольких сервисов:
+```
+[ Sources Layer ]      [ Parser ]            [ Bot ]              [ API ]
+- MarketSource         - node-schedule loop  - Telegram polling   - Express
+- KufarSource/Mapper   - dedup + claim-lease - callback queries   - Kufar scraper
+- getSource registry   - price/keyword gate  - link management    - __NEXT_DATA__
+                       - TelegramService     - i18n (ru/by)
 
-| Сервис | Описание |
-|--------|----------|
-| **bot** | Telegram бот - обрабатывает команды и отправляет уведомления |
-| **parser** | Парсер - периодически проверяет Kufar на новые объявления |
-| **api** | API сервер - получает данные объявлений Kufar |
-| **mongodb** | База данных |
+[ Data Storage ]  MongoDB: Users, Profiles, Parsers, DataParser.urls,
+                  Listings, legacy KufarAds
+```
+
+- `src/sources/` — абстракция площадки и нормализация объявлений Kufar.
+- `src/parser/parseKufar.ts` — опрос ссылок, дедуп, гейт, отправка.
+- `src/parser/notifyGate.ts` — правила цены (`NOTIFY_SOURCE_MAX_PRICE_BYN`),
+  фильтр ключевых слов и `ModelDedupe`.
+- `src/services/listingService.ts` — хранение объявлений, claim-lease,
+  привязка к Telegram-сообщениям.
+- `src/bot/` — команды, клавиатуры, добавление/удаление ссылок.
+- `src/api/` — внутренний HTTP-клиент к Kufar (с общим rate-limit'ом).
+
+---
 
 ## Конфигурация
 
-### Переменные окружения
+| Переменная | По умолчанию | Описание |
+|------------|--------------|----------|
+| `TELEGRAM_BOT_TOKEN` | — | Токен бота от @BotFather (обязательно) |
+| `TELEGRAM_CHAT_ID` | `""` | Чат для служебных уведомлений |
+| `MONGODB_URL` | `mongodb://mongodb:27017/` | Подключение к MongoDB |
+| `MONGO_INITDB_ROOT_USERNAME` / `MONGO_INITDB_ROOT_PASSWORD` | — | Креды MongoDB |
+| `API_BASE_URL` | `http://api:3000/api` | Внутренний API-клиент |
+| `KUFAR_MIN_INTERVAL_MS` | `1500` | Минимальный интервал между запросами к Kufar |
+| `NOTIFY_DEDUPE_WINDOW_MINUTES` | `720` | Окно подавления дубликатов по модели |
+| `NOTIFY_MIN_PRICE_BYN` / `NOTIFY_MAX_PRICE_BYN` | `0` | Глобальные границы цены (0 = выкл.) |
+| `NOTIFY_SOURCE_MAX_PRICE_BYN` | — | Потолки цены по ссылкам: `query=rtx+3050:500,query=cmp+40hx:350`. **Первое совпадение по URL выигрывает** — специфичные правила идут перед общими |
 
-| Переменная | Обязательно | Описание |
-|------------|-------------|----------|
-| `TELEGRAM_BOT_TOKEN` | Да | Токен бота от @BotFather |
-| `TELEGRAM_CHAT_ID` | Нет | ID чата для уведомлений администратора |
+`.env` в git не входит (в `.gitignore`); канонический файл живёт только на CT 114.
 
-### Структура проекта
+---
 
-```
-patrebna/
-├── src/
-│   ├── bot/           # Telegram бот
-│   ├── parser/        # Парсер Kufar
-│   ├── api/           # API сервер
-│   └── config/        # Конфигурация (DB, i18n)
-├── scripts/
-│   ├── setup-env.sh        # Создание .env
-│   ├── smoke.sh            # Проверка Docker-сервисов
-│   └── start.sh            # Управление Docker
-├── Docker/
-│   └── docker-compose.yml
-└── .env               # Переменные окружения (генерируется)
-```
+## Быстрый старт
 
-## Интерактив с ботом
-
-Чтобы начать:
-
-1. Отправьте боту `/start`.
-2. Выберите язык.
-3. Добавьте ссылку Kufar для отслеживания.
-4. Укажите частоту проверки.
-
-Подходит ссылка с выбранной категорией и фильтрами, например `https://kufar.by/l/город/товар/`.
-
-<img src="https://i.ibb.co/CB0xznz/IMG-2389.webp" alt="Пример использования">
-
-#### Какую информацию парсит бот
-
-- Главное фото
-- Заголовок
-- Описание (если есть)
-- Цена
-- Ссылка на объявление
-- Пользовательская частота обновления для каждой ссылки (не чаще 1 минуты)
-
-*Параметры могут варьироваться в зависимости от категории объявлений (Недвижимость, Авто или Другое).*
-
-<img src="https://i.ibb.co/T00jMgr/IMG-9240.webp" width="400" alt="Пример сообщения">
-
-## Дополнительная информация
-
-- Бот мультиязычный и поддерживает два языка (русский и белорусский)
-- Количество пользователей и ссылок не ограничивается логикой бота
-- Частота проверки задается при добавлении каждой ссылки
-
-## Решение проблем
-
-### MongoDB не запускается
-
-Проверьте логи MongoDB:
 ```bash
+./scripts/setup-env.sh        # создаёт .env
+./scripts/start.sh up-build   # сборка и запуск (docker compose)
 ./scripts/start.sh logs
-# Выберите 4 (mongodb)
 ```
 
-Если контейнер был создан старой версией проекта, пересоздайте локальные данные командой:
+Команда `/status` показывает количество объявлений, уведомлений за сегодня и
+активные ссылки пользователя.
+
+## Тестирование
+
 ```bash
-./scripts/start.sh build
+npm test              # vitest
+npx tsc --noEmit      # проверка типов
 ```
-
-### Бот не отвечает
-
-Проверьте логи:
-```bash
-./scripts/start.sh
-# Выберите пункт 4 (Логи) → 2 (bot)
-```
-
-Или напрямую:
-```bash
-cd Docker
-docker compose logs -f bot
-```
-
-## Разработчик
-
-- [Евгений Колмак](https://github.com/evgeniy-kolmak)
 
 ## Лицензия
 
-Проект **Patrebna** распространяется по лицензии MIT.
+MIT.

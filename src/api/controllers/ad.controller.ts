@@ -1,18 +1,23 @@
 import axios, { AxiosError } from 'axios';
 import axiosRetry from 'axios-retry';
 import { extractNextDataField } from 'config/lib/helpers/extractNextDataField';
+import { kufarFetchSlot } from 'config/lib/kufarFetchGate';
+import { normalizeKufarUrl } from 'config/lib/helpers/normalizeKufarUrl';
 import { type Request, type Response } from 'express';
 
 axiosRetry(axios, {
-  retries: 3,
+  retries: 2,
   retryDelay: (retryCount, error) => {
     console.warn(`Попытка #${retryCount} для ${error?.config?.url}`);
-    return retryCount * 1000;
+    return retryCount * 4000;
   },
   retryCondition: (error) => {
+    const status = error?.response?.status;
+    if (status === 429 || status === 400) return false;
     return axiosRetry.isNetworkOrIdempotentRequestError(error);
   },
 });
+
 
 export async function parseAdHandler(
   req: Request,
@@ -24,7 +29,8 @@ export async function parseAdHandler(
       res.status(400).json({ error: 'Отсутствует параметр adId' });
       return;
     }
-    const url = `https://www.kufar.by/item/${adId}`;
+    const url = normalizeKufarUrl(`https://www.kufar.by/item/${adId}`);
+    await kufarFetchSlot();
     const { data } = await axios.get<string>(url, { timeout: 15000 });
     const rawDescription: string | null = extractNextDataField(
       data,

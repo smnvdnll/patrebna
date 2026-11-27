@@ -6,6 +6,7 @@ import { type ICommandHandler } from 'config/types';
 import keyboards from 'bot/keyboards';
 import { notRegistrationMessage } from 'config/lib/helpers/notRegistrationMessage';
 import { bot } from 'bot';
+import { Listing } from 'config/db/models/Listing';
 
 export const commandHandlers: ICommandHandler[] = [
   {
@@ -100,4 +101,32 @@ export const commandHandlers: ICommandHandler[] = [
       });
     },
   },
+  {
+    regex: /\/status|Статус|Status|статус/i,
+    handler: async (userId: number) => {
+      const listingCount = await Listing.countDocuments();
+
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const [todayListings, todayNotified] = await Promise.all([
+        Listing.countDocuments({ discoveredAt: { $gte: startOfDay } }),
+        Listing.countDocuments({ notifiedAt: { $gte: startOfDay } }),
+      ]);
+
+      const dataParser = await db.getDataParser(userId);
+      const urls = dataParser?.urls ?? [];
+      const activeUrls = urls.filter((u) => u.isActive);
+
+      const lines = [
+        `🛠 <b>${t('Статус бота')}</b>`,
+        `• ${t('В базе')}: listings: ${listingCount}`,
+        `• ${t('За сегодня')}: ${t('новых объявлений')} ${todayListings}, ${t('уведомлений')} ${todayNotified}`,
+        `• ${t('Ваши треды')}: ${urls.length}, ${t('активных')}: ${activeUrls.length}`,
+      ];
+
+      await sendMessage(userId, lines.join('\n'), keyboards.Main());
+    },
+  },
 ];
+

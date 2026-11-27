@@ -1,3 +1,4 @@
+name: kufar
 services:
   bot:
     build:
@@ -5,7 +6,7 @@ services:
       dockerfile: ./Docker/bot/Dockerfile
       network: host
     image: bot
-    container_name: patrebna-bot
+    container_name: kufar-bot
     restart: always
     network_mode: host
     environment:
@@ -13,7 +14,7 @@ services:
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - MONGODB_URL=mongodb://127.0.0.1:27017/
+      - MONGODB_URL=${MONGODB_URL}
       - API_BASE_URL=http://127.0.0.1:3000/api
     depends_on:
       mongodb:
@@ -29,7 +30,7 @@ services:
       dockerfile: ./Docker/parser/Dockerfile
       network: host
     image: parser
-    container_name: patrebna-parser
+    container_name: kufar-parser
     restart: always
     network_mode: host
     environment:
@@ -37,8 +38,14 @@ services:
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
       - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
-      - MONGODB_URL=mongodb://127.0.0.1:27017/
+      - MONGODB_URL=${MONGODB_URL}
       - API_BASE_URL=http://127.0.0.1:3000/api
+      - KUFAR_MIN_INTERVAL_MS=${KUFAR_MIN_INTERVAL_MS}
+      - NOTIFY_MIN_PRICE_BYN=${NOTIFY_MIN_PRICE_BYN}
+      - NOTIFY_MAX_PRICE_BYN=${NOTIFY_MAX_PRICE_BYN}
+      - NOTIFY_SOURCE_MAX_PRICE_BYN=${NOTIFY_SOURCE_MAX_PRICE_BYN}
+      - NOTIFY_DEDUPE_WINDOW_MINUTES=${NOTIFY_DEDUPE_WINDOW_MINUTES}
+      - NOTIFY_PRINTER_MAX_PRICE_BYN=${NOTIFY_PRINTER_MAX_PRICE_BYN}
     depends_on:
       api:
         condition: service_healthy
@@ -55,13 +62,13 @@ services:
       dockerfile: ./Docker/api/Dockerfile
       network: host
     image: api
-    container_name: patrebna-api
+    container_name: kufar-api
     restart: always
     network_mode: host
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
-      - MONGODB_URL=mongodb://127.0.0.1:27017/
+      - MONGODB_URL=${MONGODB_URL}
     healthcheck:
       test:
         [
@@ -79,7 +86,7 @@ services:
         max-file: "3"
   mongodb:
     image: mongo:latest
-    container_name: patrebna-mongodb
+    container_name: kufar-mongodb
     restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME}
@@ -89,7 +96,7 @@ services:
       - --auth
       - --bind_ip_all
     volumes:
-      - ./data/db:/data/db
+      - kufar-mongodb-data:/data/db
     ports:
       - "27017:27017"
     healthcheck:
@@ -103,12 +110,15 @@ services:
       retries: 12
       start_period: 20s
     networks:
-      - patrebna-network
+      - kufar-network
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
 networks:
-  patrebna-network:
+  kufar-network:
     driver: bridge
+volumes:
+  kufar-mongodb-data:
+    name: docker_patrebna-mongodb-data

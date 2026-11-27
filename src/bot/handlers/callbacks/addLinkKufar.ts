@@ -8,6 +8,8 @@ import { sendMessage } from 'config/lib/helpers/sendMessage';
 import { editMessage } from 'config/lib/helpers/editMessage';
 import keyboards from 'bot/keyboards';
 
+import { parseUrlList } from 'bot/handlers/callbacks/parseUrlList';
+
 type PendingAddLink =
   | {
       step: 'url';
@@ -16,7 +18,8 @@ type PendingAddLink =
   | {
       step: 'interval';
       urlId: number;
-      urlText: string;
+      urlText?: string;
+      urls?: string[];
     };
 
 const pendingAddLinks = new Map<number, PendingAddLink>();
@@ -59,11 +62,26 @@ async function handleUrlMessage(
   const urlText = message.text;
   if (!urlText) return;
 
-  pendingAddLinks.set(chatId, {
-    step: 'interval',
-    urlId: pending.urlId,
-    urlText,
-  });
+  const urls = parseUrlList(urlText);
+  if (urls.length === 0) {
+    pendingAddLinks.delete(chatId);
+    await handleAddLinkError(chatId, pending.urlId, new Error('No URLs found'));
+    return;
+  }
+
+  if (urls.length === 1) {
+    pendingAddLinks.set(chatId, {
+      step: 'interval',
+      urlId: pending.urlId,
+      urlText: urls[0],
+    });
+  } else {
+    pendingAddLinks.set(chatId, {
+      step: 'interval',
+      urlId: pending.urlId,
+      urls,
+    });
+  }
 
   await sendMessage(chatId, t('Укажите частоту обновления'), {
     force_reply: true,
@@ -83,9 +101,110 @@ async function handleIntervalMessage(
   }
 
   pendingAddLinks.delete(chatId);
+
+  if (pending.urls && pending.urls.length > 1) {
+    const dataParser = await db.getDataParser(chatId);
+    let maxId = Math.max(
+      pending.urlId,
+      ...(dataParser?.urls.map((u) => u.urlId) ?? [0]),
+    );
+
+    let successCount = 0;
+    const failedUrls: Array<{ url: string; reason: 'zero' | 'error' }> = [];
+
+    for (let i = 0; i < pending.urls.length; i++) {
+      const rawUrl = pending.urls[i];
+      let url = rawUrl;
+      try {
+        url = decodeURIComponent(rawUrl);
+      } catch {
+        // use rawUrl if decode fails
+      }
+      const targetUrlId = i === 0 ? pending.urlId : ++maxId;
+
+      const data = await db.setUrlKufar(
+        chatId,
+        url,
+        targetUrlId,
+        intervalMinutes,
+      );
+
+      if (data instanceof Error) {
+        failedUrls.push({ url: rawUrl, reason: 'error' });
+      } else if (!data) {
+        failedUrls.push({ url: rawUrl, reason: 'zero' });
+      } else {
+        successCount++;
+      }
+    }
+
+    if (successCount > 0 && failedUrls.length === 0) {
+      await sendMessage(
+        chatId,
+        `${t('Добавлено ссылок')} ${successCount}`,
+        keyboards.Main(),
+      );
+    } else if (successCount > 0 && failedUrls.length > 0) {
+      const lines: string[] = [
+        `${t('Добавлено ссылок')} ${successCount}`,
+        '',
+        t('Не удалось добавить'),
+        ...failedUrls.slice(0, 3).map((item) => {
+          const reason =
+            item.reason === 'zero'
+              ? t('Ссылка без объявлений')
+              : t('ошибка');
+          return `- ${item.url} (${reason})`;
+        }),
+      ];
+      if (failedUrls.length > 3) {
+        lines.push(`- ... ${t('и др.')} (${failedUrls.length - 3})`);
+      }
+      await sendMessage(chatId, lines.join('\n'), keyboards.Main());
+    } else {
+      const lines: string[] = [
+        t('Ошибка добавления ссылки'),
+        '',
+        t('Не удалось добавить'),
+        ...failedUrls.slice(0, 3).map((item) => {
+          const reason =
+            item.reason === 'zero'
+              ? t('Ссылка без объявлений')
+              : t('ошибка');
+          return `- ${item.url} (${reason})`;
+        }),
+      ];
+      if (failedUrls.length > 3) {
+        lines.push(`- ... ${t('и др.')} (${failedUrls.length - 3})`);
+      }
+      await sendMessage(chatId, lines.join('\n'), {
+        inline_keyboard: [
+          [
+            {
+              text: t('Добавить ссылку'),
+              callback_data: JSON.stringify({
+                action: 'add_link_kufar',
+                param: pending.urlId,
+              }),
+            },
+          ],
+          [
+            {
+              text: t('Назад'),
+              callback_data: JSON.stringify({
+                action: 'back_observe',
+              }),
+            },
+          ],
+        ],
+      });
+    }
+    return;
+  }
+
   await sendMessage(chatId, t('Проверка ссылки Kufar'));
 
-  const url = decodeURIComponent(pending.urlText);
+  const url = decodeURIComponent(pending.urlText ?? pending.urls?.[0] ?? '');
   const data = await db.setUrlKufar(
     chatId,
     url,

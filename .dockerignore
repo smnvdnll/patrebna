@@ -1,24 +1,16 @@
-certs/
-
-# Docker data
-Docker/data/
-
-# Git
-.git/
-.gitignore
-
-# Development
-.env
-.env.*
-*.log
-node_modules/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS files
-.DS_Store
-Thumbs.db
+.git
+node_modules
+Docker/data
+*.bak
+*.bak.*
+.env.bak.*
+.example.env
+.opencode
+src/ai/
+src/discovery/
+scripts/discovery-smoke.ts
+scripts/fpcheck.ts
+scripts/migrate-to-listings.ts
+scripts/rescan3drw.ts
+scripts/verify-discovery-wiring.ts
+scripts/verify-entrypoint-flag-off.ts

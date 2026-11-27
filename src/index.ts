@@ -21,4 +21,5 @@ void (async () => {
       console.error('Ошибка при плановой проверке Kufar:', error);
     }
   });
+
 })();

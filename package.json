@@ -10,7 +10,9 @@
     "dev:parser": "nodemon src/index.ts",
     "dev:bot": "nodemon src/bot/index.ts",
     "dev:server": "nodemon src/api/server.ts",
-    "lint": "eslint \"**/*.{ts,tsx}\""
+    "lint": "eslint \"**/*.{ts,tsx}\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "repository": {
     "type": "git",
@@ -39,7 +41,8 @@
     "prettier": "^3.3.3",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "axios": "^1.7.6",
